@@ -1,74 +1,83 @@
 import { useState, useEffect } from 'react'
-import "prismjs/themes/prism-tomorrow.css";
-import prism from 'prismjs';
-import Editor from "react-simple-code-editor";
 import axios from 'axios';
-import Markdown from "react-markdown";
-import rehypeHighlight from 'rehype-highlight';
-import "highlight.js/styles/github-dark.css";
-
+import CodeEditor from './components/codeEditor.jsx';
+import ReviewDisplay from './components/ReviewDisplay.jsx';
+import Sidebar from './components/sidebar.jsx';
 import './App.css'
 
 function App() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  const [code, setCode] = useState(`function sum(){
-    return 1+1;
-  }`)
+  const [code, setCode] = useState(`function sum(){\nreturn 1+1;\n}`);
   const [isLoading, setIsLoading] = useState(false);
   const [review, setReview] = useState('');
-
+  const [history, setHistory] = useState([]);
+  const [improvedCode, setImprovedCode] = useState('');
+  
+  //Fetch the history in SideBar
+  const fetchHistory =async()=>{
+    try{
+      const res=await axios.get(`${API_URL}/ai/history`);
+      console.log("History from Server:", res.data);
+      setHistory(res.data);
+    }catch(error){
+      console.log("Error fetching Load History", error);
+    }
+  };
   useEffect(()=>{
-    prism.highlightAll();
-  },[])
+    fetchHistory();
+  },[]);
+
+  
 
   async function reviewCode() {
   setIsLoading(true); // Start loading
   try {
-    // 2. Use Environment Variable for the URL
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     
     const response = await axios.post(`${API_URL}/ai/get-review`, 
       { code }, 
-      { timeout: 30000 } // 3. Add a timeout (30s) so the user isn't stuck forever
+      { timeout: 30000 } // Add a timeout (30s) so the user isn't stuck forever
     );
-    setReview(response.data);
+    setReview(response.data.reviewText);
+    setImprovedCode(response.data.improvedCode);
   } catch (error) {
-   
     console.error("Error fetching review:", error);
   } finally {
     setIsLoading(false); // Stop loading regardless of success/fail
   }
 }
+ // Handle clicking a history item
+  const handleSelectReview = (item) => {
+    setCode(item.code);
+    setReview(item.reviewText);
+    setImprovedCode(item.improvedCode || "// No improved code available");
+  };
+
+  const handleNewChat = () => {
+    setCode(`function sum(){\n  return 1+1;\n}`); // Reset to default or empty string ""
+    setReview(""); // Clear the AI review output
+};
+
 
   return (
     <>
      <main>
-      <div className="left">
-        <div className="code">
-          <Editor
-            value={code}
-            onValueChange={code => setCode(code)}
-            highlight={code => prism.highlight(code, prism.languages.js, 'js')}
-            padding={10}
-            style={{
-              fontFamily: '"Fira code", "Fira Mono", monospace',
-              fontSize: 16,
-              borderRadius: "5px",
-              height: "100%",
-              width: "100%"
-            }}
-          />
-          </div>
-          <button 
-          className="review"
-          onClick={reviewCode}
-          >Review Code</button>
-        
-      </div>
-      <div className="right">
-        { isLoading? (<h3>Processing Your Code...</h3>): <Markdown rehypePlugins={( rehypeHighlight)}>{review}</Markdown> }
-
-      </div>
+      <Sidebar history={history} 
+      onSelectReview={handleSelectReview} 
+      onNewChat={handleNewChat}
+      />
+      <CodeEditor 
+      code={code}
+      setCode={setCode}
+      reviewCode={reviewCode}
+      isLoading={isLoading}
+      />
+      <ReviewDisplay 
+  review={review} 
+  improvedCode={improvedCode}
+  originalCode={code}         
+  isLoading={isLoading} 
+/>
      </main>
     </>
   )
