@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const Sidebar = ({ history, onSelectReview, onNewChat }) => {
     // UI State: Handles the collapse/expand logic locally
-    const [isOpen, setIsOpen] = useState(true);
+    const [isOpen, setIsOpen] = useState(false);
 
     return (
         <div className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
